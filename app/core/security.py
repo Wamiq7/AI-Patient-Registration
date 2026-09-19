@@ -7,7 +7,7 @@ from app.core.config import get_settings
 from app.core.exceptions import UnauthorizedError
 
 
-def verify_vapi_api_key(
+def verify_api_key(
     x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
 ) -> None:
     expected = get_settings().vapi_api_key
