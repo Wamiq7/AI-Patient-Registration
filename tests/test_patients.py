@@ -34,11 +34,15 @@ def valid_payload(**overrides: object) -> dict[str, object]:
 
 
 def created_patient(client: TestClient, **overrides: object) -> dict[str, object]:
-    response = client.post(PATIENTS_URL, json=valid_payload(**overrides))
-    assert response.status_code == 201, response.text
+    response = client.post(VAPI_URL, json=valid_payload(**overrides))
+    assert response.status_code == 200, response.text
     body = response.json()
     assert body["error"] is None
-    return body["data"]
+    assert body["data"]["status"] == "created"
+    patient_id = body["data"]["patient_id"]
+    fetched = client.get(f"{PATIENTS_URL}/{patient_id}")
+    assert fetched.status_code == 200, fetched.text
+    return fetched.json()["data"]
 
 
 def test_create_valid_patient(client: TestClient) -> None:
@@ -62,7 +66,7 @@ def test_create_valid_patient(client: TestClient) -> None:
 def test_create_missing_required_field(client: TestClient) -> None:
     payload = valid_payload()
     del payload["first_name"]
-    response = client.post(PATIENTS_URL, json=payload)
+    response = client.post(VAPI_URL, json=payload)
     assert response.status_code == 422
     body = response.json()
     assert body["data"] is None
@@ -70,61 +74,61 @@ def test_create_missing_required_field(client: TestClient) -> None:
 
 
 def test_create_invalid_first_name(client: TestClient) -> None:
-    response = client.post(PATIENTS_URL, json=valid_payload(first_name="John123"))
+    response = client.post(VAPI_URL, json=valid_payload(first_name="John123"))
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
 def test_create_invalid_last_name(client: TestClient) -> None:
-    response = client.post(PATIENTS_URL, json=valid_payload(last_name="Sm@th"))
+    response = client.post(VAPI_URL, json=valid_payload(last_name="Sm@th"))
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
 def test_create_invalid_dob(client: TestClient) -> None:
-    response = client.post(PATIENTS_URL, json=valid_payload(date_of_birth="02/30/1990"))
+    response = client.post(VAPI_URL, json=valid_payload(date_of_birth="02/30/1990"))
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
 def test_create_future_dob(client: TestClient) -> None:
-    response = client.post(PATIENTS_URL, json=valid_payload(date_of_birth="01/01/2099"))
+    response = client.post(VAPI_URL, json=valid_payload(date_of_birth="01/01/2099"))
     assert response.status_code == 422
     assert "future" in str(response.json()["error"]["details"]).lower()
 
 
 def test_create_invalid_sex(client: TestClient) -> None:
-    response = client.post(PATIENTS_URL, json=valid_payload(sex="Unknown"))
+    response = client.post(VAPI_URL, json=valid_payload(sex="Unknown"))
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
 def test_create_invalid_phone(client: TestClient) -> None:
-    response = client.post(PATIENTS_URL, json=valid_payload(phone_number="123"))
+    response = client.post(VAPI_URL, json=valid_payload(phone_number="123"))
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
 def test_create_invalid_email(client: TestClient) -> None:
-    response = client.post(PATIENTS_URL, json=valid_payload(email="not-an-email"))
+    response = client.post(VAPI_URL, json=valid_payload(email="not-an-email"))
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
 def test_create_invalid_state(client: TestClient) -> None:
-    response = client.post(PATIENTS_URL, json=valid_payload(state="ZZ"))
+    response = client.post(VAPI_URL, json=valid_payload(state="ZZ"))
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
 def test_create_invalid_zip(client: TestClient) -> None:
-    response = client.post(PATIENTS_URL, json=valid_payload(zip_code="1234"))
+    response = client.post(VAPI_URL, json=valid_payload(zip_code="1234"))
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
 def test_create_invalid_emergency_phone(client: TestClient) -> None:
-    response = client.post(PATIENTS_URL, json=valid_payload(emergency_contact_phone="555"))
+    response = client.post(VAPI_URL, json=valid_payload(emergency_contact_phone="555"))
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
@@ -257,20 +261,26 @@ def test_deleted_patient_cannot_be_deleted_again(client: TestClient) -> None:
 def test_duplicate_phone_number(client: TestClient) -> None:
     first = created_patient(client, phone_number="4155551234")
     second_payload = valid_payload(first_name="Jane", phone_number="415-555-1234")
-    response = client.post(PATIENTS_URL, json=second_payload)
-    assert response.status_code == 409
+    response = client.post(VAPI_URL, json=second_payload)
+    assert response.status_code == 200
     body = response.json()
-    assert body["data"] is None
-    assert body["error"]["code"] == "DUPLICATE_PATIENT"
-    assert body["error"]["details"]["patient_id"] == first["patient_id"]
+    assert body["error"] is None
+    assert body["data"]["status"] == "duplicate"
+    assert body["data"]["patient_id"] == first["patient_id"]
 
 
 def test_duplicate_allowed_after_soft_delete(client: TestClient) -> None:
     created = created_patient(client, phone_number="4155551234")
     client.delete(f"{PATIENTS_URL}/{created['patient_id']}")
-    response = client.post(PATIENTS_URL, json=valid_payload(phone_number="4155551234"))
-    assert response.status_code == 201
+    response = client.post(VAPI_URL, json=valid_payload(phone_number="4155551234"))
+    assert response.status_code == 200
+    assert response.json()["data"]["status"] == "created"
     assert response.json()["data"]["patient_id"] != created["patient_id"]
+
+
+def test_rest_create_is_not_available(client: TestClient) -> None:
+    response = client.post(PATIENTS_URL, json=valid_payload())
+    assert response.status_code == 405
 
 
 def test_health_endpoint(client: TestClient) -> None:

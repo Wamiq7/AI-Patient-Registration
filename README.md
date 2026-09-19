@@ -66,12 +66,11 @@ Every response is `{ "data": ..., "error": null }` or `{ "data": null, "error": 
 | --- | --- | --- |
 | `GET` | `/health` | Process up |
 | `GET` | `/health/db` | Database ping |
-| `POST` | `/api/v1/patients` | Create. Duplicate phone → `409` |
 | `GET` | `/api/v1/patients` | Active patients. Filters: `last_name`, `date_of_birth`, `phone_number` |
 | `GET` | `/api/v1/patients/{id}` | One active patient, else `404` |
 | `PUT` | `/api/v1/patients/{id}` | Partial update |
 | `DELETE` | `/api/v1/patients/{id}` | Soft delete |
-| `POST` | `/api/v1/vapi/create-patient` | Voice tool. Same create logic; duplicates return `200` with `status: duplicate` |
+| `POST` | `/api/v1/vapi/create-patient` | Only create path. Guarded by `X-API-Key` when `VAPI_API_KEY` is set. Duplicates return `200` with `status: duplicate` |
 
 Dates use `MM/DD/YYYY`. Phones are stored as 10 digits. Validation lives in the API, not in Vapi.
 

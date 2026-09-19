@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
@@ -10,13 +10,11 @@ from app.core.database import get_db
 from app.schemas.patient import (
     DeleteMessage,
     Envelope,
-    PatientCreate,
     PatientListFilters,
     PatientResponse,
     PatientUpdate,
 )
 from app.services.patient_service import (
-    create_patient,
     get_patient,
     list_patients,
     soft_delete_patient,
@@ -28,20 +26,6 @@ router = APIRouter(prefix="/patients", tags=["Patients"])
 
 def _patient_envelope(patient: object) -> dict[str, object]:
     return {"data": PatientResponse.model_validate(patient), "error": None}
-
-
-@router.post(
-    "",
-    status_code=status.HTTP_201_CREATED,
-    response_model=Envelope,
-    summary="Create patient",
-)
-def create_patient_endpoint(
-    payload: PatientCreate,
-    db: Annotated[Session, Depends(get_db)],
-) -> dict[str, object]:
-    patient = create_patient(db, payload)
-    return _patient_envelope(patient)
 
 
 @router.get(
