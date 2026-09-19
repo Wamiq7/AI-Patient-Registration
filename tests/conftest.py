@@ -18,6 +18,13 @@ from app.main import app
 from app.models.patient import Patient  # noqa: F401
 
 
+@pytest.fixture
+def api_key(monkeypatch: pytest.MonkeyPatch) -> str:
+    key = "test-api-key"
+    monkeypatch.setattr(get_settings(), "vapi_api_key", key)
+    return key
+
+
 def _test_database_url() -> str:
     raw = os.getenv("TEST_DATABASE_URL") or get_settings().database_url
     if not raw:
