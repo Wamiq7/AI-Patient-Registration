@@ -7,6 +7,7 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import verify_api_key
 from app.schemas.patient import (
     DeleteMessage,
     Envelope,
@@ -21,7 +22,11 @@ from app.services.patient_service import (
     update_patient,
 )
 
-router = APIRouter(prefix="/patients", tags=["Patients"])
+router = APIRouter(
+    prefix="/patients",
+    tags=["Patients"],
+    dependencies=[Depends(verify_api_key)],
+)
 
 
 def _patient_envelope(patient: object) -> dict[str, object]:
