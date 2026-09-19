@@ -51,32 +51,34 @@ python seed.py
 | Variable | Purpose |
 | --- | --- |
 | `DATABASE_URL` | Neon connection string |
-| `VAPI_API_KEY` | Required as `X-API-Key` on the Vapi route when set |
+| `VAPI_API_KEY` | Required as `X-API-Key` on every `/api/v1` route when set |
 | `API_HOST` / `API_PORT` | Bind address (default `0.0.0.0:8000`) |
 | `DEBUG` | Reloads the local server when true |
 | `LOG_LEVEL` | Log verbosity |
 
-`.env` is gitignored. If `VAPI_API_KEY` is empty, the Vapi route is open for local testing.
+`.env` is gitignored. If `VAPI_API_KEY` is empty, `/api/v1` routes are open for local testing. Health and docs stay public.
 
 ## HTTP API
 
 Every response is `{ "data": ..., "error": null }` or `{ "data": null, "error": { "code", "message", "details" } }`.
 
+When `VAPI_API_KEY` is set, send `X-API-Key` on every `/api/v1` request. Missing or wrong keys return `401` with `UNAUTHORIZED`.
+
 | Method | Path | Notes |
 | --- | --- | --- |
-| `GET` | `/health` | Process up |
-| `GET` | `/health/db` | Database ping |
-| `GET` | `/api/v1/patients` | Active patients. Filters: `last_name`, `date_of_birth`, `phone_number` |
+| `GET` | `/health` | Process up. Public |
+| `GET` | `/health/db` | Database ping. Public |
+| `GET` | `/api/v1/patients` | Active patients. Filters: `last_name`, `date_of_birth`, `phone_number`. Requires `X-API-Key` when `VAPI_API_KEY` is set |
 | `GET` | `/api/v1/patients/{id}` | One active patient, else `404` |
 | `PUT` | `/api/v1/patients/{id}` | Partial update |
 | `DELETE` | `/api/v1/patients/{id}` | Soft delete |
-| `POST` | `/api/v1/vapi/create-patient` | Only create path. Guarded by `X-API-Key` when `VAPI_API_KEY` is set. Duplicates return `200` with `status: duplicate` |
+| `POST` | `/api/v1/vapi/create-patient` | Only create path. Same `X-API-Key`. Duplicates return `200` with `status: duplicate` |
 
 Dates use `MM/DD/YYYY`. Phones are stored as 10 digits. Validation lives in the API, not in Vapi.
 
 ## Vapi
 
-Tool name: `create_patient`. Call it only after the caller has heard a full read-back and confirmed. Header: `X-API-Key: {VAPI_API_KEY}`.
+Tool name: `create_patient`. Call it only after the caller has heard a full read-back and confirmed. Send `X-API-Key: {VAPI_API_KEY}` on this route and on every other `/api/v1` call.
 
 ```
 POST {API_BASE_URL}/api/v1/vapi/create-patient
@@ -171,7 +173,7 @@ pytest -v
 
 ## Deploy
 
-Host the FastAPI app anywhere that can reach Neon. Set `DATABASE_URL`, `VAPI_API_KEY`, `APP_ENV=production`, and `DEBUG=false` in that environment. Point the Vapi tool at:
+Host the FastAPI app anywhere that can reach Neon. Set `DATABASE_URL`, `VAPI_API_KEY`, `APP_ENV=production`, and `DEBUG=false` in that environment. Send the same `X-API-Key` on create, list, get, update, and delete. Point the Vapi tool at:
 
 ```
 {API_BASE_URL}/api/v1/vapi/create-patient

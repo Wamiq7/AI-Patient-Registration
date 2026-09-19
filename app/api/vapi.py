@@ -6,20 +6,23 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.exceptions import DuplicatePatientError
-from app.core.security import verify_vapi_api_key
+from app.core.security import verify_api_key
 from app.schemas.patient import Envelope, PatientCreate, VapiCreateResult
 from app.services.patient_service import create_patient
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/vapi", tags=["Vapi"])
+router = APIRouter(
+    prefix="/vapi",
+    tags=["Vapi"],
+    dependencies=[Depends(verify_api_key)],
+)
 
 
 @router.post(
     "/create-patient",
     response_model=Envelope,
     summary="Create patient (Vapi)",
-    dependencies=[Depends(verify_vapi_api_key)],
 )
 def create_patient_from_vapi(
     payload: PatientCreate,

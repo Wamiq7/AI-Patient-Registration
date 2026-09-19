@@ -327,3 +327,45 @@ def test_docs_available(client: TestClient) -> None:
     assert client.get("/docs").status_code == 200
     assert client.get("/redoc").status_code == 200
     assert client.get("/openapi.json").status_code == 200
+
+
+def test_patients_reject_missing_api_key(client: TestClient, api_key: str) -> None:
+    response = client.get(PATIENTS_URL)
+    assert response.status_code == 401
+    body = response.json()
+    assert body["data"] is None
+    assert body["error"]["code"] == "UNAUTHORIZED"
+
+
+def test_patients_reject_invalid_api_key(client: TestClient, api_key: str) -> None:
+    response = client.get(PATIENTS_URL, headers={"X-API-Key": "wrong-key"})
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "UNAUTHORIZED"
+
+
+def test_patients_accept_valid_api_key(client: TestClient, api_key: str) -> None:
+    response = client.get(PATIENTS_URL, headers={"X-API-Key": api_key})
+    assert response.status_code == 200
+    assert response.json()["error"] is None
+
+
+def test_vapi_rejects_missing_api_key(client: TestClient, api_key: str) -> None:
+    response = client.post(VAPI_URL, json=valid_payload())
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "UNAUTHORIZED"
+
+
+def test_vapi_accepts_valid_api_key(client: TestClient, api_key: str) -> None:
+    response = client.post(
+        VAPI_URL,
+        json=valid_payload(phone_number="4155558888"),
+        headers={"X-API-Key": api_key},
+    )
+    assert response.status_code == 200
+    assert response.json()["data"]["status"] == "created"
+
+
+def test_health_stays_public_when_api_key_is_set(client: TestClient, api_key: str) -> None:
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json()["data"]["status"] == "ok"
