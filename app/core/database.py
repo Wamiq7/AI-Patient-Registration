@@ -13,7 +13,7 @@ engine_kwargs: dict[str, object] = {
     "pool_pre_ping": True,
     "future": True,
 }
-if "pooler" in database_url:
+if "pooler" in database_url or "neon.tech" in database_url:
     engine_kwargs["poolclass"] = NullPool
 
 engine = create_engine(database_url, **engine_kwargs)
